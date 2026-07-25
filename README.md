@@ -16,6 +16,13 @@ Wendler's conclusion is narrower than their title: the internal lingua franca is
 
 ## Result
 
+> ⚠️ **These numbers are superseded and are being re-run.** They were produced with
+> first-token-only scoring. The `Start(w)` prefix summation described below (Wendler
+> Appendix A.2) was specified but never actually implemented in the notebook; it is
+> now applied and the sweep has to be repeated. Expect P(English) and P(German) to
+> rise in both conditions, and the word count to fall if any triples now collide.
+> Retained here so the before/after is on the record.
+
 At n=54 words, **peak P(English) does not separate the two conditions**:
 
 | condition | peak P(EN) | ±95% CI | position |
@@ -39,6 +46,8 @@ Both conditions show English rising before the target language resolves. The two
 The headline number depends on a detail buried in Wendler's appendix. P(language) is **not** the probability of one token; it is the sum over `Start(w)`, every vocabulary token that could begin the correct word — all token-level prefixes, with and without a leading space, plus byte-fallback tokens. An earlier version of this notebook scored a single first token per language and, for Japanese, scored the *unspaced* form while the prompt guarantees a space-prefixed answer. That made P(Japanese) read near zero at every layer *including the final one*, where Japanese is the correct answer. The asymmetry — German reaching 0.86 while Japanese flatlined — is what exposed it.
 
 Prefix summation is not a cosmetic fix: the final-layer top-5 for 花 is `[' Blume', ' Blumen', ' Bl', ' Pflanze', ' Blüten']`, and `' Bl'` carries real mass that first-token-only scoring throws away.
+
+That correction was itself missed once. The space fix landed; the prefix summation did not, and the n=54 numbers above were produced without it — caught by re-reading the code against the methods notes rather than by any test. The filter cell now asserts that the id sets are wider than one token, so the same omission fails loudly instead of silently.
 
 ## Reproduction
 

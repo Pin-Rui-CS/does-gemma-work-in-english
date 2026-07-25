@@ -52,9 +52,27 @@ The fix is Wendler's Appendix A.2, which we had read but not implemented properl
 
 This is not cosmetic. The final-layer top-5 for 花 is `[' Blume', ' Blumen', ' Bl', ' Pflanze', ' Blüten']`. `' Bl'` carries real mass, and first-token-only scoring discards it.
 
+### 2.3.1 The same bug, missed a second time (25 Jul)
+
+⚠ **The fix above describes two corrections. Only the first was ever applied.**
+
+The space fix landed. The prefix summation did not — `start_token_ids` in the notebook returned only the first token of the spaced and unspaced tokenizations, two ids for 花, with no vocabulary scan. The methods notes specified it, the project notes recorded it as done, and the n=54 numbers in §2.4 were produced without it.
+
+It was caught by reading the notebook source against the methods notes, not by any test — the same way the original bug was caught, and for the same reason: **every gate in the pipeline was blind to it.** The lens assertion indexes the same ids on both sides. The behavioural check reads top-k strings, not id sets. The filter compared sets that happened to be singletons. Nothing in the notebook could tell a narrow id set from a correct one.
+
+Remediation: the filter cell now **asserts** that id sets for the European words contain more than one token, so this specific omission halts the run instead of producing quietly wrong curves.
+
+> **Generalised lesson:** the first bug taught us that a passing assertion doesn't mean correct scoring. The second one teaches something narrower and more useful — *a documented fix is not an applied fix.* The ground-truth document and the executed code drifted apart, and nothing was watching the gap. Verification has to run against the artifact that executes, not the one that describes it.
+
 > **Methodological lesson, and the honest headline of Phase 1:** a detail buried in an appendix determined whether a published result replicated. The assertion that was supposed to catch errors passed the whole time, because it was blind to the class of error we had.
 
 ### 2.4 The result
+
+⚠ **Superseded — produced with first-token-only scoring (see §2.3.1). Pending re-run.**
+Retained because the before/after across the scoring fix is itself evidence. The
+direction of change is predictable — P(EN) and P(DE) should both rise, since prefix
+tokens like `' Bl'` are currently uncounted — but the effect on the *difference*
+between conditions is not, which is why it has to be measured rather than argued.
 
 | condition | peak P(EN) | ±95% CI | position |
 |---|---|---|---|
@@ -110,13 +128,19 @@ State of knowledge after Phase 1:
 
 | | |
 |---|---|
-| ✓ | The English detour appears in gemma-2-2b, JA→DE, at 2B scale |
-| ✓ | It also appears in JA→JA repetition, at comparable peak magnitude |
-| ✓ | Japanese is 98% single-token in Gemma's vocabulary |
-| ✓ | Correct scoring (`Start(w)`) materially changes the numbers |
+| ~ | The English detour appears in gemma-2-2b, JA→DE, at 2B scale — *provisional, §2.3.1* |
+| ~ | It also appears in JA→JA repetition, at comparable peak magnitude — *provisional* |
+| ✓ | Japanese is 98% single-token in Gemma's vocabulary (independent of the scoring bug) |
+| ✓ | Scoring the wrong token space silently destroys one language's curve — observed twice |
+| ✗ | Whether full `Start(w)` prefix summation changes the between-condition difference |
 | ✗ | **Why** concept space is English-skewed |
 | ✗ | Whether the detour is functional or a passenger |
 | ✗ | Whether tokenization causes the cross-language variation |
+
+The qualitative shape of the curves is unlikely to move — the space fix was the one that
+determined whether a language registered at all, and prefix summation adds mass to
+already-present curves rather than creating them. But "unlikely" is a prediction, and §2.4
+is marked provisional until it is checked.
 
 The last row is the one with a testable, tractable, six-day-sized experiment behind it.
 
