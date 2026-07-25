@@ -1,0 +1,33 @@
+# Environment for the gemma-2-2b logit-lens replication.
+#
+# IMPORTANT: transformer_lens must be installed with --no-deps. Its pinned
+# dependency numpy<2 will otherwise downgrade numpy underneath an already-
+# imported binary and cause a C-ABI import error. Install in two steps:
+#
+#   pip install --no-deps "transformer_lens<3"
+#   pip install -r requirements.txt
+#
+# After installing, RESTART the kernel/interpreter before importing anything.
+# Pip replacing packages on disk does not change what is already in memory.
+
+# --- pinned: the exact versions the reported n=54 results were produced on ---
+# (recorded from the notebook's version-record cell)
+numpy==2.0.2
+transformers==4.57.6
+transformer_lens==2.18.0    # install with --no-deps, see above
+beartype==0.22.9            # newer than transformer_lens pins; works in practice
+
+# --- unpinned: supplied by the Kaggle GPU image, versions not recorded ---
+# torch must be a CUDA build; the model is run in bfloat16 (fp16 overflows
+# Gemma-2 activations and yields silent NaNs).
+torch
+matplotlib
+
+# --- transformer_lens runtime dependencies (installed separately due to --no-deps) ---
+einops
+fancy_einsum
+jaxtyping
+rich
+better-abc
+accelerate
+sentencepiece
