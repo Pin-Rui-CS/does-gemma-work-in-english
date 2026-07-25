@@ -74,6 +74,8 @@ That non-result is worth keeping. With a word list that is 98–100% single-toke
 
 ### 2.4 The result
 
+⚠ **Superseded 25 Jul — logit-lens correction, see §2.5. Awaiting re-run.**
+
 Final, with `Start(w)` prefix summation, n=54 words × 3 seeds:
 
 | condition | peak P(EN) | ±95% CI | position |
@@ -86,6 +88,73 @@ Final, with `Start(w)` prefix summation, n=54 words × 3 seeds:
 History of that interval: n=24 gave Δ = −0.0090, CI [−0.0733, +0.0605]; n=54 with first-token-only scoring gave −0.0485, CI [−0.1010, +0.0034]; n=54 corrected gives the row above. Tripling the word count halved the interval and moved the point estimate away from zero. It still contains zero, barely — and §3.1 explains why chasing it further would have been the wrong move.
 
 ✓ Japanese single-token fraction: **53/54 = 98%**. English 100%, German 98%.
+
+---
+
+## 2.5 The lens itself was wrong (25 Jul)
+
+Found while extending the method to a second model family, and it invalidates every
+intermediate-layer number produced so far.
+
+`lens_probs` called `cache.apply_ln_to_stack(resid, layer=-1)`. That TransformerLens
+helper normalises **every** component by the *final* layer's cached scale, so that
+per-component contributions sum linearly to the real logits. That is the right tool
+for **logit attribution** — decomposing a final logit into per-head contributions. It
+is not the logit lens.
+
+Wendler §3.2 define the lens as treating a latent "as if it were a final-layer
+latent", which means normalising each latent **by its own scale** and then
+unembedding. §3.1 gives the invariant that makes this checkable: after RMS
+normalisation every latent lies on a hypersphere of radius √d.
+
+The two conventions agree exactly at the **last** row, where the cached scale *is*
+that latent's scale. They diverge everywhere else, increasingly with depth, because
+residual norms grow across layers — so intermediate latents were being divided by a
+scale much larger than their own and systematically suppressed.
+
+### 2.5.1 How it surfaced, and why nothing caught it
+
+Gemma tolerated it silently. Llama-3.2-1B did not: `tgt_final` read 0.0000 where
+`model()` on the identical prompt and ids gave 1.0. The id sets were provably fine —
+`' Bl'` was in the German set and the model put probability 1.0 on it.
+
+Three gates existed and all three were blind to it:
+
+| gate | why it missed |
+|---|---|
+| lens-vs-model assertion | only checks the **final row**, the one row where the two conventions agree |
+| behavioural check | calls `model()` and reads decoded strings — never touches the lens |
+| `Start(w)` disjointness | operates on id sets, not on probabilities |
+
+> **This is the third instance of one failure mode.** First: an assertion that indexed
+> the same ids on both sides could not detect wrong ids. Second: a documented fix that
+> was never applied, with nothing comparing the notes to the code. Third: a
+> verification that covered one row of twenty-seven. Every time, the gate did not cover
+> the code path that produced the numbers. That generalisation is worth more than any
+> individual fix, and it belongs in the write-up.
+
+### 2.5.2 The fix
+
+Use the model's own modules — `model.ln_final(h)` then `model.unembed(h)` — so
+architecture differences are TransformerLens's responsibility rather than ours, and
+assert Wendler's √d invariant on every latent, not just the last:
+
+```python
+radius = h[0].norm(dim=-1) / model.cfg.d_model ** 0.5
+assert (radius - 1).abs().max() < 0.05
+```
+
+That check is architecture-independent and covers all 27 rows. Added alongside it: a
+per-model `verify_lens()` gate in the multi-model notebook, run *before* any sweep, so
+a model whose lens does not reproduce its own output is refused rather than measured.
+
+? **Expected direction of change.** Intermediate latents were suppressed, so corrected
+mid-stack probabilities should be **higher**, and the English rise possibly earlier.
+Whether the translation-vs-repetition *difference* in §3.1 survives is not predictable
+— both conditions were distorted, but not necessarily equally. It has to be re-measured.
+
+**Unaffected:** behavioural accuracy, single-token fractions, `Start(w)` id sets, all
+final-layer probabilities, and the entire scoring audit in §2.3.
 
 ---
 
@@ -106,6 +175,12 @@ Japanese here is 98% single-token. Essentially the Chinese profile.
 > **So a weak or absent separation is what Wendler's account predicts for this language.** The result is a replication, not a null. It is not evidence against the English-pivot picture.
 
 ### 3.1 The summary statistic was hiding the result
+
+⚠ **Every number in this section is an intermediate-row measurement and is superseded
+by §2.5. Awaiting re-run.** The qualitative claim — that the conditions separate on
+timing rather than height — may well survive, since both conditions were distorted by
+the same mechanism, but the magnitudes will move and the claim has to be re-checked
+rather than assumed.
 
 The peak comparison above is the pre-specified test and it does not separate. But `max` collapses a 27-point trajectory to one scalar, and the trajectories are not remotely alike:
 
@@ -331,6 +406,13 @@ The second failure mode is behavioural: the model must actually copy a kana targ
 
 ## 13. Current state
 
+- **Blocked on a re-run of both notebooks (§2.5).** The logit lens used the
+  attribution normalisation rather than the lens normalisation, so every
+  intermediate-row number in this document is superseded. Both notebooks are fixed
+  and carry the √d invariant plus a per-model verification gate; neither has been
+  re-executed. Nothing in §3 or §4 should be quoted until it has.
+- The cross-model sweep additionally needs its Llama cells discarded outright —
+  those were not merely distorted, they were noise (§2.5.1).
 - Phase 1 complete and reproducible; interpretation settled (§3).
 - **Phase 2 reordered, 25 Jul.** §3.2 claims Japanese fails to reproduce Wendler's
   Chinese pattern, but compares Japanese-on-Gemma against Chinese-on-Llama-2 — a

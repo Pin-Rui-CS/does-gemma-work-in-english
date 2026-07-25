@@ -16,6 +16,22 @@ Wendler's conclusion is narrower than their title: the internal lingua franca is
 
 ## Result
 
+> ⚠️ **Superseded — awaiting re-run after a logit-lens correction (25 Jul).**
+> The lens applied `cache.apply_ln_to_stack()`, which normalises every layer's
+> residual by the *final* layer's cached scale. That is TransformerLens's
+> **logit-attribution** convention; the logit lens requires each latent to be
+> normalised by its own scale — Wendler §3.2, "treating it as if it were a
+> final-layer latent." The **final row is unaffected**, which is exactly why the
+> verification passed: it only ever checked the last row. Every *intermediate*
+> row is affected, and that is where all of the numbers below live.
+>
+> Retained pending re-run because the before/after is itself evidence. Expected
+> direction: residual norms grow with depth, so dividing intermediate latents by
+> the larger final-layer scale suppressed them — corrected values should be
+> *higher* in mid-stack, with the English rise possibly earlier. Unchanged:
+> behavioural accuracy, single-token fractions, final-layer probabilities, and
+> everything in the scoring audit below.
+
 All numbers below are at n=54 words × 3 demonstration seeds, with `Start(w)` prefix-summation scoring.
 
 **The two conditions reach the same peak, at different times.** Measured by peak height alone they are indistinguishable:
