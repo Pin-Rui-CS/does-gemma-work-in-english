@@ -62,26 +62,28 @@ It was caught by reading the notebook source against the methods notes, not by a
 
 Remediation: the filter cell now **asserts** that id sets for the European words contain more than one token, so this specific omission halts the run instead of producing quietly wrong curves.
 
+**Resolved 25 Jul.** Prefix summation applied and the full sweep re-run. The id sets widened as expected — `Blume` 2 → 8, `flower` 2 → 10, 花 2 → 2 (a single kanji has no shorter string prefix) — and the filter still passes 54/54, so German capitalisation does keep the DE and EN sets disjoint even under broad prefix matching.
+
+✓ **The correction barely moved the numbers**: peak P(EN) 0.6141 → 0.6170 (translation), 0.6626 → 0.6627 (repetition).
+
+That non-result is worth keeping. With a word list that is 98–100% single-token, the canonical token already holds nearly all the mass and the fragmentary prefixes hold almost none, so there is very little for prefix summation to recover. **The size of this correction is itself a function of single-token availability** — it is large for Wendler's Russian (13%) and negligible here. Which means the measurement is robust to this scoring choice *for high-single-token languages specifically*, and will not be for the kana word lists in §8. Worth re-checking there rather than assuming it stays negligible.
+
 > **Generalised lesson:** the first bug taught us that a passing assertion doesn't mean correct scoring. The second one teaches something narrower and more useful — *a documented fix is not an applied fix.* The ground-truth document and the executed code drifted apart, and nothing was watching the gap. Verification has to run against the artifact that executes, not the one that describes it.
 
 > **Methodological lesson, and the honest headline of Phase 1:** a detail buried in an appendix determined whether a published result replicated. The assertion that was supposed to catch errors passed the whole time, because it was blind to the class of error we had.
 
 ### 2.4 The result
 
-⚠ **Superseded — produced with first-token-only scoring (see §2.3.1). Pending re-run.**
-Retained because the before/after across the scoring fix is itself evidence. The
-direction of change is predictable — P(EN) and P(DE) should both rise, since prefix
-tokens like `' Bl'` are currently uncounted — but the effect on the *difference*
-between conditions is not, which is why it has to be measured rather than argued.
+Final, with `Start(w)` prefix summation, n=54 words × 3 seeds:
 
 | condition | peak P(EN) | ±95% CI | position |
 |---|---|---|---|
-| JA→DE translation | 0.6141 | 0.0732 | `23_pre` |
-| JA→JA repetition | 0.6626 | 0.0648 | `24_pre` |
+| JA→DE translation | 0.6170 | 0.0728 | `23_pre` |
+| JA→JA repetition | 0.6627 | 0.0648 | `24_pre` |
 
-Δ (translation − repetition) = **−0.0485**, 95% bootstrap CI over words **[−0.1010, +0.0034]**, 2000 resamples.
+Δ peak (translation − repetition) = **−0.0457**, 95% bootstrap CI over words **[−0.0975, +0.0041]**.
 
-For comparison, before the word list was expanded (n=24): Δ = −0.0090, CI [−0.0733, +0.0605]. Tripling the words moved the point estimate away from zero and halved the interval width — but the interval still contains zero, barely.
+History of that interval: n=24 gave Δ = −0.0090, CI [−0.0733, +0.0605]; n=54 with first-token-only scoring gave −0.0485, CI [−0.1010, +0.0034]; n=54 corrected gives the row above. Tripling the word count halved the interval and moved the point estimate away from zero. It still contains zero, barely — and §3.1 explains why chasing it further would have been the wrong move.
 
 ✓ Japanese single-token fraction: **53/54 = 98%**. English 100%, German 98%.
 
@@ -103,20 +105,34 @@ Japanese here is 98% single-token. Essentially the Chinese profile.
 
 > **So a weak or absent separation is what Wendler's account predicts for this language.** The result is a replication, not a null. It is not evidence against the English-pivot picture.
 
-### 3.1 One thing the summary statistic throws away
+### 3.1 The summary statistic was hiding the result
 
-The two English curves have different **shapes**, which `max` collapses to nothing:
+The peak comparison above is the pre-specified test and it does not separate. But `max` collapses a 27-point trajectory to one scalar, and the trajectories are not remotely alike:
 
-| residual position | 20 | 21 | 22 | 23 | 24 |
-|---|---|---|---|---|---|
-| translation P(EN) | ~0.41 | ~0.52 | ~0.58 | **0.61** | ~0.47 |
-| repetition P(EN) | ~0.05 | ~0.17 | ~0.24 | ~0.38 | **0.66** |
+| residual position | 19 | 20 | 21 | 22 | 23 | 24 |
+|---|---|---|---|---|---|---|
+| translation P(EN) | 0.054 | 0.417 | 0.530 | 0.583 | **0.617** | 0.483 |
+| repetition P(EN) | 0.007 | 0.053 | 0.175 | 0.242 | 0.384 | **0.663** |
+| Δ, paired bootstrap | +0.047 | **+0.364** | +0.355 | +0.342 | +0.233 | −0.180 |
+| CI excludes 0 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
-⚠ Eyeballed off the rendered figures — the `.npy` arrays were lost when the Kaggle container was destroyed, so these are not yet exact.
+At position 20: translation 0.417 vs repetition 0.053, Δ = +0.364, CI [+0.307, +0.422]. Area under the English curve across the whole pass: Δ = **+1.200, CI [+0.998, +1.406]**.
 
-Translation shows a **broad English plateau from ~layer 20**. Repetition shows a **narrow late spike at 24**, arriving just before Japanese resolves at 25–26. At position 20 that's ~0.41 vs ~0.05, which is not a subtle difference — but the peak heights are nearly equal, so the peak statistic reports "no difference."
+✓ **The conditions separate decisively. The peak statistic is blind to how.** Under translation English occupies a broad plateau from position ~20 onward; under repetition it appears only as a brief transient at 24, immediately before Japanese resolves at 25–26.
 
-? A shape-sensitive statistic — mean P(EN) over layers 19–22, or area under the curve — would plausibly separate these cleanly. This is a **post-hoc** choice suggested by looking at the data, and if used it must be reported as exploratory, not confirmatory.
+This is what Wendler's §6 "less pronounced on repetition" looks like when measured properly: **pronouncedness is duration, not height.** Both tasks reach the same peak English probability. Only translation dwells there.
+
+⚠ **Status: exploratory, and it must be labelled that way.** The shape difference was noticed by eye first and the statistic chosen afterwards; 27 positions are tested with no multiple-comparison correction. Two things argue it is not a selection artifact — the effect is ~6× the CI half-width, and the area statistic has no free parameter (no window was chosen). But the honest description is "hypothesis for a pre-registered test," not "established." A cautionary detail from the same table: positions 17–18 also have CIs excluding zero, at Δ ≈ 0.0005. Resolvable and meaningless.
+
+### 3.2 A result that does not fit Wendler's explanation
+
+Their §6 attributes the weak Chinese repetition effect to tokenization — Chinese being 100% single-token, the model can commit to the target language immediately and skip the English detour. For Chinese specifically they report the source language rising *simultaneously with or faster than* English.
+
+Japanese here is **98% single-token** — effectively the same profile. It should behave like Chinese. It does not: in repetition, English still clearly precedes Japanese, peaking at position 24 while Japanese only resolves at 25–26.
+
+? So a language with Chinese-like tokenization does *not* show the Chinese pattern. Single-token availability alone does not appear to determine whether the English detour is skipped. That is a second crack in the same explanation, independent of the Estonian one in §7 — and this one is in our own data rather than an appendix we cannot verify.
+
+Confounds to hold in mind before leaning on this: different model family (Gemma vs Llama-2), different scale (2B vs 7B+), and Japanese is not Chinese in any respect other than kanji overlap. It weakens the tokenization account; it does not refute it. What it does do is raise the value of §8, which tests the account directly rather than by cross-language analogy.
 
 ---
 
@@ -128,19 +144,16 @@ State of knowledge after Phase 1:
 
 | | |
 |---|---|
-| ~ | The English detour appears in gemma-2-2b, JA→DE, at 2B scale — *provisional, §2.3.1* |
-| ~ | It also appears in JA→JA repetition, at comparable peak magnitude — *provisional* |
-| ✓ | Japanese is 98% single-token in Gemma's vocabulary (independent of the scoring bug) |
+| ✓ | The English detour appears in gemma-2-2b, JA→DE, at 2B scale |
+| ✓ | It also appears in JA→JA repetition, at the same peak height but far shorter duration |
+| ✓ | Japanese is 98% single-token in Gemma's vocabulary |
+| ✓ | Prefix summation is near-negligible at 98–100% single-token; its size scales with tokenization |
 | ✓ | Scoring the wrong token space silently destroys one language's curve — observed twice |
-| ✗ | Whether full `Start(w)` prefix summation changes the between-condition difference |
+| ~ | Translation and repetition separate on *timing* — large effect, exploratory status (§3.1) |
+| ~ | Japanese does not reproduce the Chinese repetition pattern despite matching its tokenization (§3.2) |
 | ✗ | **Why** concept space is English-skewed |
 | ✗ | Whether the detour is functional or a passenger |
-| ✗ | Whether tokenization causes the cross-language variation |
-
-The qualitative shape of the curves is unlikely to move — the space fix was the one that
-determined whether a language registered at all, and prefix summation adds mass to
-already-present curves rather than creating them. But "unlikely" is a prediction, and §2.4
-is marked provisional until it is checked.
+| ✗ | Whether tokenization causes the variation — **§8 tests this** |
 
 The last row is the one with a testable, tractable, six-day-sized experiment behind it.
 
