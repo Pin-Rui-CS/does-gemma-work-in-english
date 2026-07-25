@@ -332,5 +332,18 @@ The second failure mode is behavioural: the model must actually copy a kana targ
 ## 13. Current state
 
 - Phase 1 complete and reproducible; interpretation settled (§3).
-- Phase 2 designed, **gated on the §10 tokenizer check.**
+- **Phase 2 reordered, 25 Jul.** §3.2 claims Japanese fails to reproduce Wendler's
+  Chinese pattern, but compares Japanese-on-Gemma against Chinese-on-Llama-2 — a
+  language claim resting on a cross-model comparison. That has to be measured
+  before any explanation of it is tested. `tokenization_vs_detour.ipynb` does so:
+  five languages × multiple model families, testing whether single-token fraction
+  predicts the English detour at all.
+- That notebook also supplies a cleaner dissociation than the kana design in §8.
+  Vocabulary size differs by family (Llama-2 32k, Llama-3 128k, Gemma-2 256k), so
+  **the same word list has a different single-token fraction on each model** —
+  language, words, prompt and scoring all held fixed while the independent variable
+  moves. And for the 17 concepts written identically in Japanese and Chinese, the
+  target token is *the same token*, holding tokenization exactly constant while the
+  language framing varies. Together those two comparisons cross the design.
+- §8 (kana) is now partly redundant and drops below the above in priority.
 - Token energy (§9) is unblocked and can be implemented in parallel.
