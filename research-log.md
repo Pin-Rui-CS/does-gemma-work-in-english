@@ -64,7 +64,7 @@ Remediation: the filter cell now **asserts** that id sets for the European words
 
 **Resolved 25 Jul.** Prefix summation applied and the full sweep re-run. The id sets widened as expected — `Blume` 2 → 8, `flower` 2 → 10, 花 2 → 2 (a single kanji has no shorter string prefix) — and the filter still passes 54/54, so German capitalisation does keep the DE and EN sets disjoint even under broad prefix matching.
 
-✓ **The correction barely moved the numbers**: peak P(EN) 0.6141 → 0.6170 (translation), 0.6626 → 0.6627 (repetition).
+✓ **The correction barely moved the numbers**: peak P(EN) 0.6141 → 0.6170 (translation), 0.6626 → 0.6627 (repetition). Both measurements predate the lens correction of §2.5, so the absolute values are superseded by §2.4 — but the same lens produced both sides, so the *difference*, which is what this section is about, is unaffected.
 
 That non-result is worth keeping. With a word list that is 98–100% single-token, the canonical token already holds nearly all the mass and the fragmentary prefixes hold almost none, so there is very little for prefix summation to recover. **The size of this correction is itself a function of single-token availability** — it is large for Wendler's Russian (13%) and negligible here. Which means the measurement is robust to this scoring choice *for high-single-token languages specifically*, and will not be for the kana word lists in §8. Worth re-checking there rather than assuming it stays negligible.
 
@@ -74,18 +74,41 @@ That non-result is worth keeping. With a word list that is 98–100% single-toke
 
 ### 2.4 The result
 
-⚠ **Superseded 25 Jul — logit-lens correction, see §2.5. Awaiting re-run.**
+✓ **Re-run 26 Jul with the corrected lens (§2.5). These are the current numbers.**
 
-Final, with `Start(w)` prefix summation, n=54 words × 3 seeds:
+Final, with `Start(w)` prefix summation, corrected lens, n=54 words × 3 seeds:
 
 | condition | peak P(EN) | ±95% CI | position |
 |---|---|---|---|
-| JA→DE translation | 0.6170 | 0.0728 | `23_pre` |
-| JA→JA repetition | 0.6627 | 0.0648 | `24_pre` |
+| JA→DE translation | 0.5907 | 0.0672 | `23_pre` |
+| JA→JA repetition | 0.6997 | 0.0619 | `24_pre` |
 
-Δ peak (translation − repetition) = **−0.0457**, 95% bootstrap CI over words **[−0.0975, +0.0041]**.
+Δ peak (translation − repetition) = **−0.1090**, 95% paired bootstrap CI over words
+**[−0.1494, −0.0563]**. **The interval excludes zero.**
 
-History of that interval: n=24 gave Δ = −0.0090, CI [−0.0733, +0.0605]; n=54 with first-token-only scoring gave −0.0485, CI [−0.1010, +0.0034]; n=54 corrected gives the row above. Tripling the word count halved the interval and moved the point estimate away from zero. It still contains zero, barely — and §3.1 explains why chasing it further would have been the wrong move.
+History of that interval, which is worth keeping because it is a lesson about what
+was actually limiting it:
+
+| | Δ peak | CI |
+|---|---|---|
+| n=24 | −0.0090 | [−0.0733, +0.0605] |
+| n=54, first-token-only scoring | −0.0485 | [−0.1010, +0.0034] |
+| n=54, `Start(w)` corrected | −0.0457 | [−0.0975, +0.0041] |
+| n=54, corrected lens | **−0.1090** | **[−0.1494, −0.0563]** |
+
+Tripling the word count halved the interval and never resolved it. Fixing the lens
+did — and it did so by moving the *point estimate*, not by narrowing the interval
+(the half-width barely changed, 0.051 → 0.047). ✓ **The problem was never
+statistical power. It was that the instrument was reading the wrong thing**, and
+three rounds of collecting more data could not have found that. Worth stating
+plainly in the write-up: the obvious response to a CI that grazes zero is more n,
+and here that response would have been wrong every time.
+
+⚠ The sign is counterintuitive and must not be glossed. Δ is *negative*:
+**repetition reaches a higher English peak than translation.** Copying a Japanese
+word back produces more English at its maximum than translating it to German does.
+§3.1 shows this reverses on the area statistic, and that the reversal is the
+finding.
 
 ✓ Japanese single-token fraction: **53/54 = 98%**. English 100%, German 98%.
 
@@ -156,11 +179,59 @@ Whether the translation-vs-repetition *difference* in §3.1 survives is not pred
 **Unaffected:** behavioural accuracy, single-token fractions, `Start(w)` id sets, all
 final-layer probabilities, and the entire scoring audit in §2.3.
 
+### 2.5.3 What it cost, measured (26 Jul)
+
+✓ Re-run complete. The prediction above was recorded before the re-run and is
+checkable against it.
+
+| statistic | broken lens | corrected | |
+|---|---|---|---|
+| peak P(EN), translation | 0.6170 | 0.5907 | |
+| peak P(EN), repetition | 0.6627 | 0.6997 | |
+| Δ peak | −0.0457 | **−0.1090** | CI now excludes zero |
+| Δ at position 20 | +0.3636 | +0.4266 | |
+| Δ area | +1.2000 | +1.4583 | |
+| P(EN) at position 19, translation | 0.054 | **0.404** | 7.5× |
+| first position with P(EN) > 0.005 | 19 | **17** | rise starts earlier |
+| peak positions | 23 / 24 | 23 / 24 | unchanged |
+| final-row probabilities | — | — | identical to the digit |
+
+✓ **The predicted direction was right**: mid-stack probabilities rose, the English
+rise starts two positions earlier, and the effect is largest where the suppression
+was largest (position 19, furthest from the final layer among the positions
+carrying signal).
+
+✓ **The two invariants held.** Peak *positions* did not move, and the final row is
+unchanged to the digit — which it must be, since the two normalisations are
+mathematically identical at the last layer. Everything that moved is a mid-stack
+magnitude. That is the signature of a normalisation error confined to intermediate
+layers, and it is the evidence that the fix changed what it claimed and nothing else.
+
+⚠ **It also changed the conclusion, not just the numbers.** Under the broken lens
+the pre-specified test could not resolve a difference and the entire finding rested
+on post-hoc statistics. It now resolves. A bug that leaves the qualitative story
+intact but flips its evidential status from exploratory to confirmatory is a bug
+that was doing real damage — and nothing in the reported numbers looked wrong.
+
+> **Remediation that outlives this bug.** The analysis now lives in `analysis.py`
+> with a fixed seed and a `--check` flag that asserts the published values and
+> prints, beside each, what the same statistic read under the broken lens. The
+> point is not the assertion — it is that the analysis is now a *constant* across
+> re-runs, so any future movement is attributable upstream by construction. The
+> timing statistics previously existed only as an ad-hoc notebook cell that was
+> never committed, which is why their bootstrap seed was lost and their CI could
+> not be reproduced exactly. That class of loss is now structurally impossible.
+
 ---
 
 ## 3. Reading that result correctly
 
-The naive reading is "the control didn't separate, so the experiment failed." That reading is wrong, and the literature says so explicitly.
+Two naive readings, both wrong, and the second only became available after the lens
+was fixed.
+
+**Naive reading 1: "the control didn't separate, so the experiment failed."** This
+was the reading available under the broken lens. It was wrong even then, and the
+literature says so explicitly.
 
 Wendler §6:
 
@@ -172,40 +243,95 @@ And the *degree* to which it shows up varies by language, in a way they tie to t
 
 Japanese here is 98% single-token. Essentially the Chinese profile.
 
-> **So a weak or absent separation is what Wendler's account predicts for this language.** The result is a replication, not a null. It is not evidence against the English-pivot picture.
+> **So a weak or absent separation is what Wendler's account predicts for this language.** The result would have been a replication, not a null.
 
-### 3.1 The summary statistic was hiding the result
+**Naive reading 2: "repetition peaks higher, so translation isn't the English-mediated
+task."** This is the reading the corrected numbers invite, and it is the one to guard
+against now. Δ peak = −0.1090 with a CI excluding zero does mean repetition reaches a
+higher English maximum. It does not mean repetition is *more* English-mediated,
+because the peak is a single position out of 27 and says nothing about the other 26.
+On the area statistic the ordering reverses, also with a CI excluding zero.
 
-⚠ **Every number in this section is an intermediate-row measurement and is superseded
-by §2.5. Awaiting re-run.** The qualitative claim — that the conditions separate on
-timing rather than height — may well survive, since both conditions were distorted by
-the same mechanism, but the magnitudes will move and the claim has to be re-checked
-rather than assumed.
+> **Both statistics resolve, and they disagree in direction.** That is not a
+> contradiction in the data — it is two different questions. "How English does this
+> get at its most English?" and "how much English is there in total?" have different
+> answers here, and the paper's phrase *"less pronounced"* does not specify which one
+> it is asking. §3.1 is about that.
 
-The peak comparison above is the pre-specified test and it does not separate. But `max` collapses a 27-point trajectory to one scalar, and the trajectories are not remotely alike:
+### 3.1 The two summary statistics disagree, and that is the finding
+
+✓ **Re-measured 26 Jul with the corrected lens.** The qualitative claim survived the
+correction and strengthened: the conditions differ in *how they spend* English, and
+`max` was never going to show that.
 
 | residual position | 19 | 20 | 21 | 22 | 23 | 24 |
 |---|---|---|---|---|---|---|
-| translation P(EN) | 0.054 | 0.417 | 0.530 | 0.583 | **0.617** | 0.483 |
-| repetition P(EN) | 0.007 | 0.053 | 0.175 | 0.242 | 0.384 | **0.663** |
-| Δ, paired bootstrap | +0.047 | **+0.364** | +0.355 | +0.342 | +0.233 | −0.180 |
+| translation P(EN) | 0.404 | **0.582** | 0.521 | 0.495 | 0.591 | 0.520 |
+| repetition P(EN) | 0.120 | 0.156 | 0.226 | 0.249 | 0.289 | **0.700** |
+| Δ, paired bootstrap | +0.284 | **+0.427** | +0.295 | +0.246 | +0.302 | −0.180 |
 | CI excludes 0 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
-At position 20: translation 0.417 vs repetition 0.053, Δ = +0.364, CI [+0.307, +0.422]. Area under the English curve across the whole pass: Δ = **+1.200, CI [+0.998, +1.406]**.
+At position 20: translation 0.582 vs repetition 0.156, Δ = +0.4266, CI [+0.3555,
++0.5017]. Total English probability across the whole pass: **3.30 for translation
+against 1.85 for repetition**, Δ = **+1.4583, CI [+1.2184, +1.7109]**.
 
-✓ **The conditions separate decisively. The peak statistic is blind to how.** Under translation English occupies a broad plateau from position ~20 onward; under repetition it appears only as a brief transient at 24, immediately before Japanese resolves at 25–26.
+✓ **Translation holds English above 0.4 for six consecutive positions (19–24).
+Repetition climbs slowly, fires once at 24, and is gone by 25** — a single spike
+immediately before Japanese resolves at 25–26.
 
-This is what Wendler's §6 "less pronounced on repetition" looks like when measured properly: **pronouncedness is duration, not height.** Both tasks reach the same peak English probability. Only translation dwells there.
+So the two conditions differ in the *shape* of their English usage, not in whether
+they use it:
 
-⚠ **Status: exploratory, and it must be labelled that way.** The shape difference was noticed by eye first and the statistic chosen afterwards; 27 positions are tested with no multiple-comparison correction. Two things argue it is not a selection artifact — the effect is ~6× the CI half-width, and the area statistic has no free parameter (no window was chosen). But the honest description is "hypothesis for a pre-registered test," not "established." A cautionary detail from the same table: positions 17–18 also have CIs excluding zero, at Δ ≈ 0.0005. Resolvable and meaningless.
+| | peak height | total (area) |
+|---|---|---|
+| which condition is higher | **repetition** | **translation** |
+| Δ | −0.1090 | +1.4583 |
+| CI | [−0.1494, −0.0563] | [+1.2184, +1.7109] |
+| excludes zero | ✓ | ✓ |
+
+✓ **This is not a power problem — it is a statistic-choice problem.** Both intervals
+exclude zero. A reader given only the peak concludes repetition is the more
+English-mediated task; a reader given only the area concludes the opposite. Neither is
+misreading their number. The choice of summary statistic determines the answer, and it
+therefore has to be *argued* rather than defaulted to — which is precisely what the
+published phrasing does not do.
+
+Read against Wendler §6, "less pronounced on repetition": measured as height it is
+**more** pronounced here; measured as duration it is unmistakably **less**. Their
+qualitative claim survives only under the second reading. The paper does not say which
+it means, and under the broken lens this project could not have noticed, because the
+peak comparison returned no answer at all.
+
+⚠ **Status: the confirmatory statistic now separates; the duration claim is still
+exploratory.** The peak comparison was fixed before the sweep and it resolves, so the
+headline no longer rests on post-hoc analysis. But the position-wise and area
+statistics were chosen after the shape difference was noticed by eye, and 27 positions
+are tested with no multiple-comparison correction. Two things argue against a
+selection artifact — the effect is ~6× the CI half-width, and the area statistic has
+no free parameter (no window was chosen). The honest description of the *duration*
+claim specifically remains "hypothesis for a pre-registered test." A cautionary detail
+from the same run: position 17 also has a CI excluding zero, at Δ ≈ 0.008, and eleven
+further positions clear zero at |Δ| < 1e-4 where both curves are flat and the interval
+is measuring bf16 rounding. Resolvable and meaningless.
 
 ### 3.2 A result that does not fit Wendler's explanation
 
 Their §6 attributes the weak Chinese repetition effect to tokenization — Chinese being 100% single-token, the model can commit to the target language immediately and skip the English detour. For Chinese specifically they report the source language rising *simultaneously with or faster than* English.
 
-Japanese here is **98% single-token** — effectively the same profile. It should behave like Chinese. It does not: in repetition, English still clearly precedes Japanese, peaking at position 24 while Japanese only resolves at 25–26.
+Japanese here is **98% single-token** — effectively the same profile. It should behave like Chinese. It does not.
+
+✓ **Confirmed under the corrected lens.** In repetition, English reaches 0.700 at
+position 24 while Japanese is still at 0.089; Japanese only resolves at 25 (0.762) and
+26 (0.989). English precedes it by a clear margin — no simultaneity, and certainly not
+Japanese rising faster.
 
 ? So a language with Chinese-like tokenization does *not* show the Chinese pattern. Single-token availability alone does not appear to determine whether the English detour is skipped. That is a second crack in the same explanation, independent of the Estonian one in §7 — and this one is in our own data rather than an appendix we cannot verify.
+
+This claim held under the broken lens and holds under the corrected one, which is
+worth noting for a reason beyond the claim itself: it is the one Phase-1 finding whose
+*evidential status* was unchanged by the normalisation bug, because it depends on the
+**ordering** of two curves rather than on their magnitudes. Orderings survived the bug;
+magnitudes did not. Anything resting on a magnitude needed re-measuring.
 
 Confounds to hold in mind before leaning on this: different model family (Gemma vs Llama-2), different scale (2B vs 7B+), and Japanese is not Chinese in any respect other than kanji overlap. It weakens the tokenization account; it does not refute it. What it does do is raise the value of §8, which tests the account directly rather than by cross-language analogy.
 
@@ -213,24 +339,27 @@ Confounds to hold in mind before leaning on this: different model family (Gemma 
 
 ## 4. Where this stops being enough
 
-Everything above is a **measurement**. A careful one, with verified machinery and an honest error history — but it answers "does the known effect appear here too?" and the answer is "yes, about as expected."
+Everything above is a **measurement**. A careful one, with verified machinery and an honest error history — but it answers "does the known effect appear here too?" and the answer is "yes, and the summary statistic you pick changes what you'd say about it."
 
 State of knowledge after Phase 1:
 
 | | |
 |---|---|
 | ✓ | The English detour appears in gemma-2-2b, JA→DE, at 2B scale |
-| ✓ | It also appears in JA→JA repetition, at the same peak height but far shorter duration |
+| ✓ | It also appears in JA→JA repetition — reaching a *higher* peak, over a far shorter duration |
+| ✓ | Peak and area separate the conditions in **opposite directions**, both with CIs excluding zero |
+| ✓ | The pre-specified test resolves only after the lens correction; more data would never have fixed it |
 | ✓ | Japanese is 98% single-token in Gemma's vocabulary |
 | ✓ | Prefix summation is near-negligible at 98–100% single-token; its size scales with tokenization |
 | ✓ | Scoring the wrong token space silently destroys one language's curve — observed twice |
-| ~ | Translation and repetition separate on *timing* — large effect, exploratory status (§3.1) |
-| ~ | Japanese does not reproduce the Chinese repetition pattern despite matching its tokenization (§3.2) |
+| ✓ | Japanese does not reproduce the Chinese repetition pattern despite matching its tokenization (§3.2) — an ordering claim, so it survived the lens bug intact |
+| ~ | Translation and repetition separate on *duration* — large effect, exploratory status (§3.1) |
 | ✗ | **Why** concept space is English-skewed |
 | ✗ | Whether the detour is functional or a passenger |
-| ✗ | Whether tokenization causes the variation — **§8 tests this** |
+| ✗ | Which summary statistic actually corresponds to "routes through English" — peak and area disagree and nothing here adjudicates |
+| ✗ | Whether tokenization causes the variation — **`tokenization_vs_detour.ipynb` tests this** |
 
-The last row is the one with a testable, tractable, six-day-sized experiment behind it.
+The last row is the one with a testable, tractable experiment already built behind it.
 
 ---
 
@@ -399,21 +528,32 @@ The second failure mode is behavioural: the model must actually copy a kana targ
 2. **The kana tokenization assumption is unverified** (§10). This can invalidate the design outright.
 3. **Orthographic frequency confound** (§8.3) is real and only partly mitigable.
 4. **`Start(w)` inflation for kana** (§8.4) biases toward the hypothesis. Must be controlled explicitly.
-5. **Raw `.npy` arrays from the n=54 run were lost** when the Kaggle container was destroyed. Figures and summary numbers survive in the notebook; exact curve values need one re-run.
-6. **Compute:** Kaggle free tier, T4, 12-hour session cap, ephemeral storage. Every session must push results before it ends.
+5. ~~**Raw `.npy` arrays from the n=54 run were lost** when the Kaggle container was destroyed.~~ **Closed 26 Jul.** Arrays now travel home base64-encoded inside the notebook's own output — the one channel from an ephemeral container to a local file — and `extract_results.py` decodes them. Nothing is written to the container's filesystem.
+6. **Compute:** Kaggle free tier, T4, 12-hour session cap, ephemeral storage.
+7. **Three measurement bugs found so far, at roughly one per phase of work** (§2.3, §2.3.1, §2.5). Each passed every gate then in place; each was caught by reading rather than by testing. The corrected numbers are the reported ones, but the base rate is the risk: nothing establishes that the count is now zero. The mitigation is structural rather than a promise — every gate added since covers a *code path* (the √d invariant runs on all 27 rows, `verify_lens()` runs per model before any sweep, the id-set assertion halts on narrow sets, `analysis.py --check` pins the published values) rather than a single spot-checked value.
 
 ---
 
 ## 13. Current state
 
-- **Blocked on a re-run of both notebooks (§2.5).** The logit lens used the
-  attribution normalisation rather than the lens normalisation, so every
-  intermediate-row number in this document is superseded. Both notebooks are fixed
-  and carry the √d invariant plus a per-model verification gate; neither has been
-  re-executed. Nothing in §3 or §4 should be quoted until it has.
-- The cross-model sweep additionally needs its Llama cells discarded outright —
-  those were not merely distorted, they were noise (§2.5.1).
-- Phase 1 complete and reproducible; interpretation settled (§3).
+*Updated 26 Jul.*
+
+- ✓ **Phase 1 complete, re-run under the corrected lens, and reproducible without a
+  GPU.** `mechanistic_interpretability.ipynb` was re-executed top to bottom; the √d
+  invariant printed 1.0000 on every row; `extract_results.py` and
+  `analysis.py --check` reproduce every published number from the committed arrays.
+  §2.4, §2.5.3 and §3.1 carry the current values. Nothing in this document is
+  superseded any more.
+- ✓ **The headline is now confirmatory.** The pre-specified peak comparison resolves
+  (CI excludes zero) where under the broken lens it could not. The duration claim
+  remains exploratory and is labelled as such.
+- **Still outstanding: `tokenization_vs_detour.ipynb` has not been re-run.** Its
+  results in `results/` (`tokenization_sweep.npz`, `tokenization_summary.json`,
+  `fig_tokenization_correlation.png`) are all pre-fix and should not be quoted. It
+  additionally needs its Llama cells discarded outright — those were not merely
+  distorted, they were noise (§2.5.1) — and `Llama-3.2-3B` never completed at all, so
+  the within-language, across-model comparison (the cleanest test in the design) has
+  never produced a number. Re-running it is the next GPU session.
 - **Phase 2 reordered, 25 Jul.** §3.2 claims Japanese fails to reproduce Wendler's
   Chinese pattern, but compares Japanese-on-Gemma against Chinese-on-Llama-2 — a
   language claim resting on a cross-model comparison. That has to be measured
